@@ -4,6 +4,7 @@ import axios from "axios";
 import { mostrarAlerta } from "../functions.js";
 import Swal from 'sweetalert2';
 import withReactContent from "sweetalert2-react-content";
+import { useNavigate } from 'react-router-dom';
 
 //CUERPO COMPONENTE
 const AdopcionComponent = () => {
@@ -23,15 +24,31 @@ const AdopcionComponent = () => {
   const [nombreS, setNombreS] = useState("");
   const [idMascota, setIdMascota] = useState("");
   const [estado, setEstado] = useState("");
+  //Inicio de sesion
+  const [autenticado, setAutenticado] = useState(false);
+  const navigate = useNavigate();
+  //Barra de búsqueda
+  const [filtro, setFiltro] = useState("");
 
   useEffect(() => {
     getMascotas();
+    checkAuthentication();
   }, []);
 
   const getMascotas = async () => {
     const respuesta = await axios.get(`${url}/buscar`);
     console.log(respuesta.data);
     setMascotas(respuesta.data);
+  };
+
+  const checkAuthentication = () => {
+    const storedAuth = localStorage.getItem("autenticado");
+    if (!storedAuth) {
+      console.log("Usuario no autenticado en MascotasComponent");
+      setAutenticado(false);
+    }else{
+      setAutenticado(true);
+    }
   };
 
   const openModal =(opcion, idMascota, nombre, nombreS, idS, estado)=>{
@@ -137,6 +154,20 @@ const AdopcionComponent = () => {
   //Filtro para mostrar mascotas de acuerdo a la disponibilidad, se muestran los que estan disponibles (true)
   const mascotasDisponibles = mascotas.filter(mascota => mascota.disponible);
 
+  //Fitro para mostrar mascotas de acuerdo a la disponibilidad y de acuerdo a la barra de busqueda
+  const mascotasFiltradas = mascotasDisponibles.filter(
+    (mascota) =>
+      mascota.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
+      mascota.especie.toLowerCase().includes(filtro.toLowerCase())
+  );
+
+  const cerrarSesion = () => {
+    setAutenticado(false); // Lógica para cerrar sesión
+    // Limpia el estado autenticado en localStorage al cerrar sesión
+    localStorage.removeItem("autenticado");
+    navigate('/');
+  };
+
   return (
     <div className="App">
         <nav class="navbar navbar-expand-lg bg-body-tertiary">
@@ -152,26 +183,63 @@ const AdopcionComponent = () => {
                     <li class="nav-item">
                     <a class="nav-link" aria-current="page" href="#">Inicio</a>
                     </li>
-                    <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Mascota
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="/">Registrar</a></li>
-                        <li><a class="dropdown-item" href="/adoptar">Adoptar</a></li>
-                        <li><hr class="dropdown-divider"></hr></li>
-                        <li><a class="dropdown-item" href="/visualizar">Solicitudes</a></li>
-                    </ul>
-                    </li>
-                    <li class="nav-item">
-                    <a class="nav-link disabled" aria-disabled="true">Perfil</a>
-                    </li>
+                    {autenticado ? (
+                        <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Mascota
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/mascotas">Registrar</a></li>
+                            <li><a class="dropdown-item" href="/">Adoptar</a></li>
+                            <li><hr class="dropdown-divider"></hr></li>
+                            <li><a class="dropdown-item" href="/visualizar">Solicitudes</a></li>
+                        </ul>
+                        </li>
+                    ):(
+                        <li class="nav-item">
+                            <a class="nav-link" aria-current="page" href="/">Adoptar</a>
+                        </li>
+                    )}
                 </ul>
-                <form class="d-flex" role="search">
-                    <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search"></input>
-                    <button class="btn btn-outline-success" type="submit">Search</button>
-                </form>
+                <div class="d-flex justify-content-center">
+                    <form class="d-flex" role="search">
+                        <input 
+                        class="form-control me-2"
+                        type="search"
+                        placeholder="Search"
+                        aria-label="Search"
+                        value={filtro}
+                        onChange={(e) => setFiltro(e.target.value)}
+                        ></input>
+                        <button class="btn btn-outline-success" type="submit">Search</button>
+                    </form>
                 </div>
+                {autenticado ? ( 
+                    <ul className="navbar-nav">
+                        <li className="nav-item dropdown">
+                            <a className="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div className="d-flex align-items-center">
+                                    <img src="https://cdn-icons-png.flaticon.com/512/236/236831.png" alt="Logo" height="50" />
+                                </div>
+                            </a>
+                            <ul className="dropdown-menu dropdown-menu-end">
+                                <li><a className="dropdown-item" href="/login">Mi Perfil</a></li>
+                                <li><a className="dropdown-item" href="#">Configuraciones</a></li>
+                                <li><hr className="dropdown-divider"></hr></li>
+                                <li><a className="dropdown-item" href="#" onClick={() => cerrarSesion()}>Cerrar Sesión</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                ) : ( 
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/login">
+                                <img src="https://cdn-icons-png.flaticon.com/512/1177/1177568.png" alt="Logo" height="50" />
+                            </a>
+                        </li>
+                    </ul>
+                )}
+              </div>
             </div>
         </nav>
         <div class="container text-center">
@@ -180,7 +248,7 @@ const AdopcionComponent = () => {
             <h2>Adoptar Mascotas</h2>
             <br></br>
             <div class="row">
-                {mascotasDisponibles.map((mascota, i) => (
+                {mascotasFiltradas.map((mascota, i) => (
                     <div class="col">
                       <br></br>
                         <div class="card" style={{width: '18rem'}}>

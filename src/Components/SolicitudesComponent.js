@@ -4,6 +4,7 @@ import axios from "axios";
 import { mostrarAlerta } from "../functions.js";
 import Swal from 'sweetalert2';
 import withReactContent from "sweetalert2-react-content";
+import { useNavigate } from 'react-router-dom';
 
 //CUERPO COMPONENTE
 const SolicitudesComponent = () => {
@@ -15,15 +16,30 @@ const SolicitudesComponent = () => {
   const [estado, setEstado] = useState("");
   const [operacion, setOperacion] = useState("");
   const [titulo,setTitulo]=useState("");
+  //Inicio de sesion
+  const [autenticado, setAutenticado] = useState(false);
+  const navigate = useNavigate();
+  //Barra de búsqueda
+  const [filtro, setFiltro] = useState("");
 
   useEffect(() => {
     getSolicitudes();
+    checkAuthentication();
   }, []);
 
   const getSolicitudes = async () => {
     const respuesta = await axios.get(`${url}/buscar`);
     console.log(respuesta.data);
     setSolicitudes(respuesta.data);
+  };
+
+  const checkAuthentication = () => {
+    const storedAuth = localStorage.getItem("autenticado"); //Recuperar el estado de la variable segun sea el caso
+    if (!storedAuth) { //Condicional para saber si esta autenticado o no
+      console.log("Usuario no autenticado en MascotasComponent");
+      setAutenticado(false);
+      navigate('/login'); //Redirigir al usuario no autenticado al login
+    }
   };
 
   const enviarSolicitud = async (metodo, parametros)=>{
@@ -33,7 +49,6 @@ const SolicitudesComponent = () => {
         let mensaje = respuesta.data.mensaje;
         mostrarAlerta(mensaje,tipo);
         if(tipo ==="success"){
-            document.getElementById("btnCerrarModal").click();
             getSolicitudes();
         }
     })
@@ -62,6 +77,19 @@ const SolicitudesComponent = () => {
     })
   }
 
+  const cerrarSesion = () => {
+    setAutenticado(false); // Lógica para cerrar sesión
+    // Limpia el estado autenticado en localStorage al cerrar sesión
+    localStorage.removeItem("autenticado");
+    checkAuthentication();
+  };
+
+  const solicitudesFiltradas = solicitudes.filter(
+    (solicitud) =>
+      solicitud.nombre_solicitante.toLowerCase().includes(filtro.toLowerCase()) ||
+      solicitud.estado.toLowerCase().includes(filtro.toLowerCase())
+  );
+
   return (
     <div className="App">
         <nav class="navbar navbar-expand-lg bg-body-tertiary">
@@ -82,22 +110,43 @@ const SolicitudesComponent = () => {
                         Mascota
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="/">Registrar</a></li>
-                        <li><a class="dropdown-item" href="/adoptar">Adoptar</a></li>
+                        <li><a class="dropdown-item" href="/mascotas">Registrar</a></li>
+                        <li><a class="dropdown-item" href="/">Adoptar</a></li>
                         <li><hr class="dropdown-divider"></hr></li>
                         <li><a class="dropdown-item" href="/visualizar">Solicitudes</a></li>
                     </ul>
                     </li>
-                    <li class="nav-item">
-                    <a class="nav-link disabled" aria-disabled="true">Perfil</a>
+                </ul>
+                <div class="d-flex justify-content-center">
+                    <form class="d-flex" role="search">
+                        <input 
+                        className="form-control me-2"
+                        type="search"
+                        placeholder="Search"
+                        aria-label="Search"
+                        value={filtro}
+                        onChange={(e) => setFiltro(e.target.value)}
+                        ></input>
+                        <button class="btn btn-outline-success" type="submit">Search</button>
+                    </form>
+                </div>
+                <ul className="navbar-nav">
+                    <li className="nav-item dropdown">
+                        <a className="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div className="d-flex align-items-center">
+                                <img src="https://cdn-icons-png.flaticon.com/512/236/236831.png" alt="Logo" height="50" />
+                            </div>
+                        </a>
+                        <ul className="dropdown-menu dropdown-menu-end">
+                            <li><a className="dropdown-item" href="/login">Mi Perfil</a></li>
+                            <li><a className="dropdown-item" href="#">Configuraciones</a></li>
+                            <li><hr className="dropdown-divider"></hr></li>
+                            <li><a className="dropdown-item" href="#" onClick={() => cerrarSesion()}>Cerrar Sesión</a></li>
+                        </ul>
                     </li>
                 </ul>
-                <form class="d-flex" role="search">
-                    <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search"></input>
-                    <button class="btn btn-outline-success" type="submit">Search</button>
-                </form>
-                </div>
-            </div>
+              </div>
+          </div>
         </nav>
       <div className="container-fluid">
         <div className="row mt-3">
@@ -113,7 +162,7 @@ const SolicitudesComponent = () => {
                   </tr>
                 </thead>
                 <tbody className="table-group-divider">
-                  {solicitudes.map((solicitud, i) => (
+                  {solicitudesFiltradas.map((solicitud, i) => (
                     <tr key={solicitud.id}>
                       <td>{solicitud.id}</td>
                       <td>{solicitud.nombre_solicitante}</td>
